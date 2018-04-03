@@ -126,6 +126,8 @@ int main(void)
 	std::cout << glGetString(GL_RENDERER) << std::endl;
 	std::cout << glGetString(GL_VERSION) << std::endl;
 
+	glfwSwapInterval(1);
+
 	if (glewInit() != GLEW_OK) {
 		std::cout << "GLEW ERROR!\n";
 	}
@@ -166,18 +168,33 @@ int main(void)
 
 	ShaderProgramSource source = ParseShader("res/shaders/Basic.shader");
 	unsigned int shader = CreateShader(source.VertexSource, source.FragmentSource);
-	glUseProgram(shader);
+	GLCall(glUseProgram(shader));
+
+	GLCall(int location = glGetUniformLocation(shader, "u_Color"));
+	ASSERT(location != -1);
+	GLCall(glUniform4f(location, 0.8f, 0.3f, 0.8f, 1.0f));
+
+	float redChannel = 0.0f;
+	float redChannelIncrement = 0.05f;
 
 	/* Loop until the user closes the window */
 	while (!glfwWindowShouldClose(window))
 	{
 		/* Render here */
 		glClear(GL_COLOR_BUFFER_BIT);
-
+		GLCall(glUniform4f(location, redChannel, 0.3f, 0.8f, 1.0f));
 		/* Utilizar a linha abaixo, caso esteja renderizando direto, sem index buffer */
 		//glDrawArrays(GL_TRIANGLES, 0, 3);
-		
+
 		GLCall(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr));
+
+		if (redChannel > 1.0f)
+			redChannelIncrement = -0.05f;
+		else if (redChannel < 0.0f)
+			redChannelIncrement = 0.05f;
+
+		redChannel += redChannelIncrement;
+		
 
 		/* Swap front and back buffers */
 		glfwSwapBuffers(window);
