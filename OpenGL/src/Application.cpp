@@ -112,6 +112,11 @@ int main(void)
 	if (!glfwInit())
 		return -1;
 
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+
 	/* Create a windowed mode window and its OpenGL context */
 	window = glfwCreateWindow(640, 480, "Hello World", NULL, NULL);
 	if (!window)
@@ -148,23 +153,29 @@ int main(void)
 		2, 3, 0
 	};
 
+	// Creates one vertex array object. The 1 literaly means create ONE vertex array object.
+	unsigned int vao;
+	GLCall(glGenVertexArrays(1, &vao)); 
+	GLCall(glBindVertexArray(vao));
+	
 	// Preparamos uma variavel para se tornar um vertex buffer object (VBO). Entretanto melhor utilizar um index buffer object
 	// para economizar memoria.
 	unsigned int buffer;
-	glGenBuffers(1, &buffer); // Gera 1 buffer e passa o endereco da variavel.
-	glBindBuffer(GL_ARRAY_BUFFER, buffer); // Ativa o buffer, indicando o tipo deste buffer e o proprio VBO.
-	glBufferData(GL_ARRAY_BUFFER, 6 * 2 * sizeof(float), positions, GL_STATIC_DRAW); // Coloca os dados dentro do VBO
+	GLCall(glGenBuffers(1, &buffer)); // Gera 1 buffer e passa o endereco da variavel.
+	GLCall(glBindBuffer(GL_ARRAY_BUFFER, buffer)); // Ativa o buffer, indicando o tipo deste buffer e o proprio VBO.
+	GLCall(glBufferData(GL_ARRAY_BUFFER, 4 * 2 * sizeof(float), positions, GL_STATIC_DRAW)); // Coloca os dados dentro do VBO
 	
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, 0);
+	GLCall(glEnableVertexAttribArray(0));
+	GLCall(glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, 0)); // Primeiro parametro (0) aponta para o index do vao.
 	
 	/* INDEX BUFFER OBJECT - Renderizando utilizando indexes para economizar memoria*/
-    // Preparamos uma variavel para se tornar um index buffer object (IBO)
+    
+	// Preparamos uma variavel para se tornar um index buffer object (IBO)
 	
 	unsigned int ibo;
-	glGenBuffers(1, &ibo); // Gera 1 buffer e passa o endereco da variavel.
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo); // Ativa o buffer, indicando o tipo deste buffer e o proprio index buffer object.
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(unsigned int), indices, GL_STATIC_DRAW); // Coloca os dados dentro do buffer
+	GLCall(glGenBuffers(1, &ibo)); // Gera 1 buffer e passa o endereco da variavel.
+	GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo)); // Ativa o buffer, indicando o tipo deste buffer e o proprio index buffer object.
+	GLCall(glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(unsigned int), indices, GL_STATIC_DRAW)); // Coloca os dados dentro do buffer
 
 	ShaderProgramSource source = ParseShader("res/shaders/Basic.shader");
 	unsigned int shader = CreateShader(source.VertexSource, source.FragmentSource);
@@ -174,6 +185,13 @@ int main(void)
 	ASSERT(location != -1);
 	GLCall(glUniform4f(location, 0.8f, 0.3f, 0.8f, 1.0f));
 
+	// Unbinding everything
+	GLCall(glUseProgram(0));
+	GLCall(glBindVertexArray(0));
+	GLCall(glBindBuffer(GL_ARRAY_BUFFER, 0));
+	GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0));
+
+
 	float redChannel = 0.0f;
 	float redChannelIncrement = 0.05f;
 
@@ -182,7 +200,23 @@ int main(void)
 	{
 		/* Render here */
 		glClear(GL_COLOR_BUFFER_BIT);
+
+		// bind the shader
+		GLCall(glUseProgram(shader)); 
+
 		GLCall(glUniform4f(location, redChannel, 0.3f, 0.8f, 1.0f));
+		
+		// bind the buffer and re-enable the attributes if not using Vertex Array Object (VAO)
+		//GLCall(glBindBuffer(GL_ARRAY_BUFFER, buffer)); 
+		//GLCall(glEnableVertexAttribArray(0));
+		//GLCall(glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, 0));
+
+		// Bind the vertex array object. This object is already bound with the attributes when glVertexAttribPointer was called.
+		GLCall(glBindVertexArray(vao));
+
+		GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo)); // bind the index buffer
+
+		
 		/* Utilizar a linha abaixo, caso esteja renderizando direto, sem index buffer */
 		//glDrawArrays(GL_TRIANGLES, 0, 3);
 
@@ -203,7 +237,7 @@ int main(void)
 		glfwPollEvents();
 	}
 
-	glDeleteProgram(shader);
+	GLCall(glDeleteProgram(shader));
 
 	glfwTerminate();
 	return 0;
