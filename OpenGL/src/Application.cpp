@@ -4,26 +4,10 @@
 #include <fstream>
 #include <string>
 #include <sstream>
+#include "Renderer.h"
+#include "VertexBuffer.h"
+#include "IndexBuffer.h"
 
-#define ASSERT(x) if (!(x)) __debugbreak();
-#define GLCall(x) GLClearError();\
-	x;\
-	ASSERT(GLLogCall(#x, __FILE__, __LINE__))
-
-static void GLClearError()
-{
-	while (glGetError() != GL_NO_ERROR);
-}
-
-static bool GLLogCall(const char* function, const char* file, int line)
-{
-	while (GLenum error = glGetError())
-	{
-		std::cout << "[OpenGL ERROR] " << "("<< error <<"): " << function << " " << file << ":" << line << std::endl;
-		return false;
-	}
-	return true;
-}
 
 struct ShaderProgramSource
 {
@@ -140,104 +124,95 @@ int main(void)
 		std::cout << "GLEW OK!\n";
 	}
 
+	{ // Scope to allow OpenGL run all its functions before the end of the context.
+
 	// Creating a buffer. Dados que serao colcoados dentro do buffer.
-	float positions[] = {
-		-0.5f, -0.5f, // vertex 0
-		 0.5f, -0.5f, // vertex 1
-		 0.5f,  0.5f, // vertex 2
-		-0.5f,  0.5f  // vertex 3
-	};
+		float positions[] = {
+			-0.5f, -0.5f, // vertex 0
+			 0.5f, -0.5f, // vertex 1
+			 0.5f,  0.5f, // vertex 2
+			-0.5f,  0.5f  // vertex 3
+		};
 
-	unsigned int indices[] = {
-		0, 1, 2,
-		2, 3, 0
-	};
+		unsigned int indices[] = {
+			0, 1, 2,
+			2, 3, 0
+		};
 
-	// Creates one vertex array object. The 1 literaly means create ONE vertex array object.
-	unsigned int vao;
-	GLCall(glGenVertexArrays(1, &vao)); 
-	GLCall(glBindVertexArray(vao));
-	
-	// Preparamos uma variavel para se tornar um vertex buffer object (VBO). Entretanto melhor utilizar um index buffer object
-	// para economizar memoria.
-	unsigned int buffer;
-	GLCall(glGenBuffers(1, &buffer)); // Gera 1 buffer e passa o endereco da variavel.
-	GLCall(glBindBuffer(GL_ARRAY_BUFFER, buffer)); // Ativa o buffer, indicando o tipo deste buffer e o proprio VBO.
-	GLCall(glBufferData(GL_ARRAY_BUFFER, 4 * 2 * sizeof(float), positions, GL_STATIC_DRAW)); // Coloca os dados dentro do VBO
-	
-	GLCall(glEnableVertexAttribArray(0));
-	GLCall(glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, 0)); // Primeiro parametro (0) aponta para o index do vao.
-	
-	/* INDEX BUFFER OBJECT - Renderizando utilizando indexes para economizar memoria*/
-    
-	// Preparamos uma variavel para se tornar um index buffer object (IBO)
-	
-	unsigned int ibo;
-	GLCall(glGenBuffers(1, &ibo)); // Gera 1 buffer e passa o endereco da variavel.
-	GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo)); // Ativa o buffer, indicando o tipo deste buffer e o proprio index buffer object.
-	GLCall(glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(unsigned int), indices, GL_STATIC_DRAW)); // Coloca os dados dentro do buffer
-
-	ShaderProgramSource source = ParseShader("res/shaders/Basic.shader");
-	unsigned int shader = CreateShader(source.VertexSource, source.FragmentSource);
-	GLCall(glUseProgram(shader));
-
-	GLCall(int location = glGetUniformLocation(shader, "u_Color"));
-	ASSERT(location != -1);
-	GLCall(glUniform4f(location, 0.8f, 0.3f, 0.8f, 1.0f));
-
-	// Unbinding everything
-	GLCall(glUseProgram(0));
-	GLCall(glBindVertexArray(0));
-	GLCall(glBindBuffer(GL_ARRAY_BUFFER, 0));
-	GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0));
-
-
-	float redChannel = 0.0f;
-	float redChannelIncrement = 0.05f;
-
-	/* Loop until the user closes the window */
-	while (!glfwWindowShouldClose(window))
-	{
-		/* Render here */
-		glClear(GL_COLOR_BUFFER_BIT);
-
-		// bind the shader
-		GLCall(glUseProgram(shader)); 
-
-		GLCall(glUniform4f(location, redChannel, 0.3f, 0.8f, 1.0f));
-		
-		// bind the buffer and re-enable the attributes if not using Vertex Array Object (VAO)
-		//GLCall(glBindBuffer(GL_ARRAY_BUFFER, buffer)); 
-		//GLCall(glEnableVertexAttribArray(0));
-		//GLCall(glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, 0));
-
-		// Bind the vertex array object. This object is already bound with the attributes when glVertexAttribPointer was called.
+		// Creates one vertex array object. The 1 literaly means create ONE vertex array object.
+		unsigned int vao;
+		GLCall(glGenVertexArrays(1, &vao));
 		GLCall(glBindVertexArray(vao));
 
-		GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo)); // bind the index buffer
+		// Create a Vertex Buffer
+		VertexBuffer vb(positions, 4 * 2 * sizeof(float));
 
-		
-		/* Utilizar a linha abaixo, caso esteja renderizando direto, sem index buffer */
-		//glDrawArrays(GL_TRIANGLES, 0, 3);
+		GLCall(glEnableVertexAttribArray(0));
+		GLCall(glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, 0)); // Primeiro parametro (0) aponta para o index do vao.
 
-		GLCall(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr));
+		/* INDEX BUFFER OBJECT - Renderizando utilizando indexes para economizar memoria*/
+		IndexBuffer ib(indices, 6);
 
-		if (redChannel > 1.0f)
-			redChannelIncrement = -0.05f;
-		else if (redChannel < 0.0f)
-			redChannelIncrement = 0.05f;
+		ShaderProgramSource source = ParseShader("res/shaders/Basic.shader");
+		unsigned int shader = CreateShader(source.VertexSource, source.FragmentSource);
+		GLCall(glUseProgram(shader));
 
-		redChannel += redChannelIncrement;
-		
+		GLCall(int location = glGetUniformLocation(shader, "u_Color"));
+		ASSERT(location != -1);
+		GLCall(glUniform4f(location, 0.8f, 0.3f, 0.8f, 1.0f));
 
-		/* Swap front and back buffers */
-		glfwSwapBuffers(window);
+		// Unbinding everything
+		GLCall(glUseProgram(0));
+		GLCall(glBindVertexArray(0));
+		GLCall(glBindBuffer(GL_ARRAY_BUFFER, 0));
+		GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0));
 
-		/* Poll for and process events */
-		glfwPollEvents();
-	}
 
-	GLCall(glDeleteProgram(shader));
+		float redChannel = 0.0f;
+		float redChannelIncrement = 0.05f;
+
+		/* Loop until the user closes the window */
+		while (!glfwWindowShouldClose(window))
+		{
+			/* Render here */
+			glClear(GL_COLOR_BUFFER_BIT);
+
+			// bind the shader
+			GLCall(glUseProgram(shader));
+
+			GLCall(glUniform4f(location, redChannel, 0.3f, 0.8f, 1.0f));
+
+			// bind the buffer and re-enable the attributes if not using Vertex Array Object (VAO)
+			//GLCall(glBindBuffer(GL_ARRAY_BUFFER, buffer)); 
+			//GLCall(glEnableVertexAttribArray(0));
+			//GLCall(glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, 0));
+
+			// Bind the vertex array object. This object is already bound with the attributes when glVertexAttribPointer was called.
+			GLCall(glBindVertexArray(vao));
+			ib.Bind(); // Bind the index buffer.
+
+			/* Utilizar a linha abaixo, caso esteja renderizando direto, sem index buffer */
+			//glDrawArrays(GL_TRIANGLES, 0, 3);
+
+			GLCall(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr));
+
+			if (redChannel > 1.0f)
+				redChannelIncrement = -0.05f;
+			else if (redChannel < 0.0f)
+				redChannelIncrement = 0.05f;
+
+			redChannel += redChannelIncrement;
+
+
+			/* Swap front and back buffers */
+			glfwSwapBuffers(window);
+
+			/* Poll for and process events */
+			glfwPollEvents();
+		}
+
+		GLCall(glDeleteProgram(shader));
+	} // End of the big scope.
 
 	glfwTerminate();
 	return 0;
