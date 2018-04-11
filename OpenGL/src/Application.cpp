@@ -8,6 +8,7 @@
 
 #include "Renderer.h"
 #include "VertexBuffer.h"
+#include "VertexBufferLayout.h"
 #include "IndexBuffer.h"
 #include "VertexArray.h"
 #include "Shader.h"
@@ -64,12 +65,6 @@ int main(void)
 			2, 3, 0
 		};
 
-		// Creates one vertex array object. The 1 literaly means create ONE vertex array object.
-		//unsigned int vao;
-		//GLCall(glGenVertexArrays(1, &vao));
-		//GLCall(glBindVertexArray(vao));
-
-		//TODO: Planejamento Vertex Array Class
 		VertexArray va;
 		// Create a Vertex Buffer
 		VertexBuffer vb(positions, 4 * 2 * sizeof(float));
@@ -92,34 +87,23 @@ int main(void)
 		ib.Unbind();
 		shader.Unbind();
 
+		Renderer renderer;
+
 		float redChannel = 0.0f;
 		float redChannelIncrement = 0.05f;
 
 		/* Loop until the user closes the window */
 		while (!glfwWindowShouldClose(window))
 		{
-			/* Render here */
-			GLCall(glClear(GL_COLOR_BUFFER_BIT));
+			
+			/* RENDER HERE */
 
-			// bind the shader
+			renderer.Clear();
+			
 			shader.Bind();
 			shader.SetUniform4f("u_Color", redChannel, 0.3f, 0.8f, 1.0f);
-
-			// bind the buffer and re-enable the attributes if not using Vertex Array Object (VAO)
-			//GLCall(glBindBuffer(GL_ARRAY_BUFFER, buffer)); 
-			//GLCall(glEnableVertexAttribArray(0));
-			//GLCall(glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, 0));
-
-			// Bind the vertex array object. This object is already bound with the attributes when glVertexAttribPointer was called.
-			//GLCall(glBindVertexArray(vao)); // TODO: Comentar esta linha quando a classe VertexArray for implementada
-			va.Bind(); // bind the vertex array
 			
-			ib.Bind(); // Bind the index buffer.
-
-			/* Utilizar a linha abaixo, caso esteja renderizando direto, sem index buffer */
-			//glDrawArrays(GL_TRIANGLES, 0, 3);
-
-			GLCall(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr));
+			renderer.Draw(va, ib, shader);
 
 			if (redChannel > 1.0f)
 				redChannelIncrement = -0.05f;
